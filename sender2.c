@@ -1,9 +1,9 @@
 #define COM1BASE 0x3F8
 #define COM2BASE 0X2F8
 #define COM3BASE 0X3E8
-#define TXDATA COM2BASE
-#define LCR (COM2BASE+3) /*0x3F8 line control*/
-#define LSR (COM2BASE+5) /*0x3FD line status */
+#define TXDATA COM3BASE
+#define LCR (COM3BASE+3) /*0x3F8 line control*/
+#define LSR (COM3BASE+5) /*0x3FD line status */
 #include <conio.h>
 #include <dos.h>
 #include <stdio.h>
@@ -49,10 +49,10 @@ char** data8bit;
 
 
 int mode,R_No=0,S_No=0;
-char received_frame[100],send_data[1000],c;
+char received_data[1000],send_data[1000],c;
 
 //-------FRAME & CONTROL function ----------
-unsigned char frame_receiver(void);
+int frame_receiver(void);
 int frame_sender(unsigned char* str);
 unsigned char** Cut8Char(unsigned char str[],int size);
 
@@ -92,13 +92,11 @@ int main( void)
 	while(1)
 	{
 		if(mode == 0){
+			printf("RECEIVE\t<< ");
 			while(1){
-				received_frame=frame_receiver();
-				printf(">> %s\n",received_frame);
-				if(strchr(received_frame,24)>=0){
-					exit(0);
-				}
-				if(strcmp(received_frame,"0")==0)
+				frame_receiver();
+				printf("\t<< %s\n",received_data);
+				if(strcmp(received_data,"0")==0)
 					break;
 			}
 
@@ -116,7 +114,7 @@ int main( void)
 			frame_number_last=dataSize/8;
 			printf("Frame Number : %d\n",frame_number_last);
 			if(strlen(send_data)%8!=0)	// Should not occur
-				frame_number_last++;*
+				frame_number_last++;
 
 			// Send All-1 Frame
 			while(frame_number_current<frame_number_last){
@@ -127,12 +125,11 @@ int main( void)
 					// Send 1 frame + Start counter
 					frame_sender(data8bit[frame_number_current]);
 					printf("Sent Frame : %d\n",frame_number_current);
-					get_ack=wait_ack(frame_number_current%2); // frame_number_current%2 == 0,1 << ACK 					
+
+						frame_number_current++;	break;	//Temp for test
+					// if receive ACK(not TIME OUT) > break & send Next Frame
+					
 				}
-				if(strchr(data8bit[frame_number_current],24)>=0){
-					exit(0);
-				}
-				frame_number_current++; // Next frame
 
 			}
 			
@@ -198,18 +195,9 @@ int get_character(void)
 
 
 //------------------------------------------------------
-char wait_ack(){
-	// if receive ACK(not TIME OUT) > break & send Next Frame
-	while(1){
-		if(elapse==sender_timer){ // TIME OUT
-			printf("TIME-OUT\n");
-			break;
-		}
-	}
-}
 
-unsigned char* frame_receiver(void){
-	char received_data[100];
+
+int frame_receiver(void){
 	R_No =0;
 	//printf("Receive << ");
 	do{
@@ -220,7 +208,7 @@ unsigned char* frame_receiver(void){
 	if(received_data[R_No] == 24)
 		exit(0);
 	//printf("%s \n",received_data);
-	return received_data;
+	return 1;
 }
 
 int frame_sender(unsigned char* str){
