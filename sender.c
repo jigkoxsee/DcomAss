@@ -49,10 +49,11 @@ char** data8bit;
 
 
 int mode,R_No=0,S_No=0;
-char received_frame[100],send_data[1000],c;
+char send_data[1000],c;
+unsigned char* received_frame;
 
 //-------FRAME & CONTROL function ----------
-unsigned char frame_receiver(void);
+unsigned char* frame_receiver(void);
 int frame_sender(unsigned char* str);
 unsigned char** Cut8Char(unsigned char str[],int size);
 
@@ -61,6 +62,10 @@ void file_reader(char* filename);
 
 int main( void)
 {
+	// TEST TEST TEST
+	file_reader("pie");
+
+
 	// Setup part
 	ackR=0;
 	ackS=0;
@@ -116,19 +121,16 @@ int main( void)
 			frame_number_last=dataSize/8;
 			printf("Frame Number : %d\n",frame_number_last);
 			if(strlen(send_data)%8!=0)	// Should not occur
-				frame_number_last++;*
+				frame_number_last++;
 
 			// Send All-1 Frame
 			while(frame_number_current<frame_number_last){
 
-				//LOOP until receive ACK
-				while(1){
-					// Create  Frame
-					// Send 1 frame + Start counter
-					frame_sender(data8bit[frame_number_current]);
-					printf("Sent Frame : %d\n",frame_number_current);
-					get_ack=wait_ack(frame_number_current%2); // frame_number_current%2 == 0,1 << ACK 					
-				}
+				// Create  Frame
+				// Send 1 frame + Start counter
+				frame_sender(data8bit[frame_number_current]);
+				printf("Sent Frame : %d\n",frame_number_current);
+	//wait_ack(frame_number_current%2); // frame_number_current%2 == 0,1 << ACK 					
 				if(strchr(data8bit[frame_number_current],24)>=0){
 					exit(0);
 				}
@@ -198,18 +200,26 @@ int get_character(void)
 
 
 //------------------------------------------------------
-char wait_ack(){
+	/*
+void wait_ack(int ackNo){
 	// if receive ACK(not TIME OUT) > break & send Next Frame
-	while(1){
-		if(elapse==sender_timer){ // TIME OUT
-			printf("TIME-OUT\n");
-			break;
-		}
+	int status;
+	do{
+		status = inportb(LSR) & 0x01;
+	}while (status!=0x01);
+	//Repeat until bit 1 in LSR is set
+
+	if(elapse==sender_timer){ // TIME OUT
+		printf("TIME-OUT\n");
+		break;
 	}
-}
+
+	//inportb(TXDATA);
+
+}*/
 
 unsigned char* frame_receiver(void){
-	char received_data[100];
+	unsigned char received_data[100];
 	R_No =0;
 	//printf("Receive << ");
 	do{
@@ -247,7 +257,7 @@ int frame_sender(unsigned char* str){
 
 unsigned char** Cut8Char(unsigned char str[],int size){
 	int row= 0,j=0;
-	unsigned char **word;
+	unsigned char** word;
 	int i,Rsize=(size%8==0)? size/8:(size/8)+1;
 	word=(unsigned char**)malloc((Rsize)*sizeof(unsigned char*));
 	for(i=0;i<=Rsize;i++){
@@ -266,44 +276,40 @@ unsigned char** Cut8Char(unsigned char str[],int size){
 // File part
 
 void file_reader(char* filename){
-	char fileSize=0;
-	unsigned char *ptr,ch;
+	int fileSize=0;
+	short *ptr,ch;
 	int i=0;
 	FILE *fp1 = NULL, *fp2 = NULL;
 
 	// rb= read-binary only start first 
 	// wb = write-binary 
 	fp1=fopen("Print.ico", "rb");
-	fp2=fopen("Print2.ico", "wb");
+	fp2=fopen("Print3.ico", "wb");
 	// fp1=fopen("text.txt", "rb");
 	// fp2=fopen("text2.txt", "wb");
 
 	fseek(fp2, SEEK_SET, 0);
 	while(1){			// Find Size
-		fread(&ch,sizeof(unsigned char),1, fp1);
+		fread(&ch,sizeof(short),1, fp1);
 		fileSize++;
 		if(feof(fp1)) break;
 		
 	}
+
 	printf("FILE Size: %d\n",fileSize);
-	ptr = (unsigned char*)malloc(sizeof(unsigned char)*fileSize); //CREAT Array
+	ptr = (short*)malloc(sizeof(short)*fileSize); //CREAT Array
 
 	fseek(fp1, SEEK_SET, 0);
 	while(1){
-		fread(&ch,sizeof(unsigned char),1, fp1);
+		fread(&ch,sizeof(short),1, fp1);
 		if(feof(fp1)) break;
-		ptr[i++] = ch; //Save into Array
-		fwrite(&ch,sizeof(unsigned char),1, fp2);
+		ptr[i++] = *&ch; //Save into Array
+		//fwrite(&ch,sizeof(short),1, fp2);
 	}
 
-	//fwrite(ptr,sizeof(unsigned char),fileSize, fp2);
-	// for(i=0;i<fileSize;i++){
-	// 	printf("%c ",ptr[i]);
-	// 	ch=ptr[i];
-	// 	fwrite(*ch,sizeof(unsigned char),1, fp2);
-	// }
+	// Write into file
+	fwrite(ptr,sizeof(short),fileSize, fp2);
 
-	printf("\n");
 	//free(ptr);
 	fclose(fp1);
 	fclose(fp2);
