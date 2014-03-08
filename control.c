@@ -37,7 +37,7 @@ void control_sender(int* data_parity,int frame_no,int isFile,int dataSize){
 	while(frame_number_current<frame_number_last){
 
 		// CREATE frame from << data_parity
-		frame=iframe_new(isFile,0,frame_number_current%2,dataSize-frame_number_current*8 /*size*/,data_parity+frame_number_current);
+		frame=iframe_new_frame(isFile,0,frame_number_current%2,dataSize-frame_number_current*8 /*size*/,data_parity+frame_number_current);
 		printf("Frane Data size : %d\n",dataSize-frame_number_current*8);
 
 		while(send_unsuccess){
@@ -55,7 +55,7 @@ void control_sender(int* data_parity,int frame_no,int isFile,int dataSize){
 	}
 
 	// LAST FRAME;
-	frame=iframe_new(isFile,1,frame_number_current%2,dataSize-frame_number_current*8,data_parity+frame_number_current);// text lastframe put 1
+	frame=iframe_new_frame(isFile,1,frame_number_current%2,dataSize-frame_number_current*8,data_parity+frame_number_current);// text lastframe put 1
 	while(send_unsuccess){
 		// Send 1 frame + Start counter
 		frame_sender(frame);
@@ -71,6 +71,7 @@ void control_sender(int* data_parity,int frame_no,int isFile,int dataSize){
 void text_sender(unsigned char* send_data){
 	int* data_parity;
 	int send_unsuccess;
+	char s_frame=sframe_new(0,1,0);
 
 	send_unsuccess=1;
 	//----------SSSSSSSS----------

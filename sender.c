@@ -11,20 +11,43 @@
 #include <string.h>
 #include <time.h>
 
-#include "dcom.c"
+/*#include "dcom.c"
 #include "control.c"
 #include "error.c"
 #include "file.c"
 #include "frame.c"
-#include "time.c"
+#include "time.c"*/
+
+//-------------- Variable Declaration ------------\\
+char name[200],name2[200];
+
+/*CONTROL	== 00  I-TEXT
+			== 01  I-IMG
+			== 10  S-TEXT
+			== 11  S-IMG	*/
+int sender_timer,startTime;
+int frame_number_last,frame_number_current;
+int ackR,ackS,control,dataSize;
+char** data8bit;
+int control_is_txt_img;
+
+unsigned char* file_ptr;
+
+int mode,R_No=0,S_No=0;
+char send_data[1000],c;
+unsigned char* received_frame;
+
+//-------------- Variable Declaration ------------//
 
 
 int main( void)
 {
 
-	// FOR TEST
+	//------------------FOR TEST------------------
 	strcpy(name,"COM1");
 	strcpy(name2,"COM2");
+
+	//---------------FOR TEST END-----------------
 
 	// Setup part
 	ackR=0;
@@ -36,26 +59,47 @@ int main( void)
 	c = getche();
 	printf("\n");
 
-	//DISABLE_IN_TEST//printf("Enter you name\t: ");
-	//DISABLE_IN_TEST//gets(name);
+	printf("Enter you name\t: ");
+	gets(name);
 
 	if(c == 's'||c=='S'){
 		mode = 1;
-		//DISABLE_IN_TEST//printf("Set up sender time (ms)\t: ");
-		//DISABLE_IN_TEST//scanf("%d",&sender_timer);
-		//DISABLE_IN_TEST//while((c= getchar()) != '\n' && c != EOF); //Flushing scanf
+		printf("Set up sender time (ms)\t: ");
+		scanf("%d",&sender_timer);
+		while((c= getchar()) != '\n' && c != EOF); //Flushing scanf
 	}
 	else
 		mode = 0;
-	//printf("\n");
 
 
 
-	// Initial part
-		// Send+Receive Name & Timer
+
+	//-------------------Initial part-------------------\\
+	//Send+Receive Name & Timer
+
+	if(mode==1){//SENDER
+
+		// Send name
+		text_sender(name);
+		// Send Timer
+		text_sender(sender_timer);
+		// Wait for name
+
+	}else{//RECEIVER
+
+		// Wait for name
+		I_Frame_receive(received_frame)
+		// Wait for Timer
+		// Send name
+		text_sender(name);
+
+	}
+
+	//-------------------Initial part-------------------//
+
 
 	
-	// Running part
+	//-------------------Running part-------------------\\
 	while(1)
 	{
 		if(mode == 0){

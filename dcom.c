@@ -1,21 +1,4 @@
-//-------------- Variable Declaration------------
-char name[200],name2[200];
 
-/*CONTROL	== 00  I-TEXT
-			== 01  I-IMG
-			== 10  S-TEXT
-			== 11  S-IMG	*/
-int sender_timer,startTime;
-int frame_number_last,frame_number_current;
-int ackR,ackS,control,dataSize;
-char** data8bit;
-int control_is_txt_img;
-
-short *file_ptr;
-
-int mode,R_No=0,S_No=0;
-char send_data[1000],c;
-unsigned char* received_frame;
 
 /*Some ANSI C prototype definitions*/
 void setup_serial(void);

@@ -22,7 +22,7 @@ typedef struct{
 
 /*isFile>>img=1//text=0*/
 
-unsigned char* iframe_new(int isFile,int lastframe,int frameno,int size,int* data){// text lastframe put 1
+unsigned char* iframe_new_frame(int isFile,int lastframe,int frameno,int size,int* data){// text lastframe put 1
 	int is3=0,is2=0;
 	int asize=size;
 	unsigned int a,b,i,j;
