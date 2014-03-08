@@ -68,15 +68,13 @@ int* parityEncap(unsigned char* input,int size){
     return output;
 }
 
-int parityChecker(int* input,int size){
-	int i;
-	int parity;
-	for(i = 0;
-		i < size;
-		i++){
-		if (parityGen(input[i]) != 0){
-			return 0;
-		}
+int parityChecker(int* input,int size){ int i;
+	int temp;
+	for(i = 0;i < size;i++){
+		temp += input[i];
+	}
+	if (temp % 2 != 0){ 
+		return 0;
 	}
 	return 1;
 }
@@ -89,9 +87,18 @@ void printBin(int input) {
 }
 
 int main() {
-	char ch[]="HELLO";
+	//unsigned char ch[]="HELLO";
+	unsigned char ch[5];
 	int* ch2;
 	int size=5;
+
+	ch[0]=getche();
+	ch[1]=getche();
+	ch[2]=getche();
+	ch[3]=getche();
+	ch[4]=getche();
+
+	printf("\nCH = %s\n",ch);
 
 	ch2=parityEncap(ch,size);
 
@@ -103,19 +110,5 @@ int main() {
 	printf("   >> %x\n",ch2[5]);
 	printf("   >> %x\n",ch2[6]);
 
-	printf("__________________________");
-	printBin(ch2[0]);
-	printBin(ch2[1]);
-	printBin(ch2[2]);
-	printBin(ch2[3]);
-	printBin(ch2[4]);
-	printBin(ch2[5]);
-	printBin(ch2[6]);
-
-
-
-	//int parityGen(int v)
-	//int* parityEncap(unsigned char* input,int size){
-	//int parityChecker(int* input,int size){
 	getch();
 }
