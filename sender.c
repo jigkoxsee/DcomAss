@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <time.h>
 /*Some ANSI C prototype definitions*/
 void setup_serial(void);
 void send_character(int ch);
@@ -20,15 +20,15 @@ void send_string(char* str);
 //-------- Frame Declaration --------
 typedef struct{
 	int i1,i2,i3;
-}iframe;
+}iframe_sender;
 
-typedef struct{
+/*typedef struct{
 	int s1;
-}sframe;
+}sframe;*/
 
-iframe iframe_new(int isimg,int lastframe,int frameno,int size,int data[]);
+iframe_sender iframe_new(int isFile,int lastframe,int frameno,int size,int data[]);
 
-sframe sframe_new(int isimg,int ACKorNAK,int ACKno);
+char sframe_new(int isFile,int ACKorNAK,int ACKno);
 
 
 //-------------- Variable Declaration------------
@@ -39,9 +39,10 @@ CONTROL	== 00  I-TEXT
 		== 01  I-IMG
 		== 10  S-TEXT
 		== 11  S-IMG	*/
-int sender_timer,frame_number_last,frame_number_current,ackR,ackS,control,dataSize;
+int sender_timer,startTime,frame_number_last,frame_number_current,ackR,ackS,control,dataSize;
 char** data8bit;
 int control_is_txt_img;
+short *file_ptr;
 
 int mode,R_No=0,S_No=0;
 char send_data[1000],c;
@@ -51,9 +52,20 @@ unsigned char* received_frame;
 unsigned char* frame_receiver(void);
 int frame_sender(unsigned char* str);
 unsigned char** Cut8Char(unsigned char str[],int size);
+int getTimer();
+int startTimer();
+int isS_Frame(unsigned char* received_frame);
+void S_Frame_receive(unsigned char* received_frame);
+void I_Frame_receive(unsigned char* received_frame);
 
-//----------- File ----------
-void file_reader(char* filename);
+
+//---------- File ----------
+int file_reader(char* filename);
+void file_writer(char* filename,int fileSize,short *ptr);
+void file_sender(char* file_location);
+			//void file_receiver(char* file_location);
+
+
 
 int main( void)
 {
@@ -105,14 +117,15 @@ int main( void)
 
 				if(isS_Frame(received_frame){
 					//--------------------------------SSSSSS--------------------------------
-					S_Frame_receive(); // Set control_is_txt_img << in HERE
+					S_Frame_receive(received_frame); // Set control_is_txt_img << in HERE
 				}else{
 					//--------------------------------IIIIII--------------------------------
-					I_Frame_receive(); // Check control_is_txt_img before receive
+					I_Frame_receive(received_frame); // Check control_is_txt_img before receive
 				}
 			}
-
+			printf("Ending Frame");
 			mode = 1; // Change to Sender
+
 		}else if(mode == 1){
 
 			printf("%s >> ",name);
@@ -124,17 +137,11 @@ int main( void)
 				printf("Enter file location : ");
 				gets(file_location);
 				file_sender(file_location); // Pass File data & file size to frame_sender << HERE
-
-				//printf("File : %s \n",file_location);
-				//file_reader(file_location);
-
 			}else{
 				//----------------------------------TEXT MODE----------------------------------
 				text_sender(send_data);
 			}
-
 			printf("Ending Frame");
-
 			mode = 0; // Change to Receiver
 			
 		}
@@ -143,77 +150,99 @@ int main( void)
 }
 
 //------------------------------------------------------
-/*void wait_ack(int ackNo){
-	// if receive ACK(not TIME OUT) > break & send Next Frame
+int wait_ack(int ackNo){
 	int status;
 	do{
 		status = inportb(LSR) & 0x01;
+
+		if(getTimer()==0){ // TIME OUT -> Send new frame
+			printf("TIME-OUT\n");
+			return 1; // Not receive ACK
+		}
 	}while (status!=0x01);
-	//Repeat until bit 1 in LSR is set
+	//Repeat until get Something
 
-	if(elapse==sender_timer){ // TIME OUT
-		printf("TIME-OUT\n");
-		break;
+	if(!checkACK(inportb(TXDATA))){
+		return 1;	// Fail to receive ACK
 	}
 
-	//inportb(TXDATA);
+	return 0; // Receive ACK & Send Complete
+}
 
-}*/
-void text_sender(char* send_data){
-	// Add 2D-Parity;
-	int parityGen(int v) {
-		//EVEN Parity
-		v ^= v >> 16;
-		v ^= v >> 8;
-		v ^= v >> 4;
-		v &= 0xf;
-		return (0x6996 >> v) & 1;
-	}
-	//---------------------
-	
-	dataSize=strlen(send_data);
-	printf("SIZE : %d\n",dataSize);
-	data8bit=Cut8Char(send_data,dataSize);
-
-	// Calculate Number of Frame?
-	frame_number_current=0;
-	frame_number_last=dataSize/8;
-	printf("Frame Number : %d\n",frame_number_last);
-	if(dataSize%8!=0)	// Should not occur
-		frame_number_last++;
+void control_sender(int* data_parity,int frame_no,int isFile,int dataSize){
+//iframe_new(int isFile,int lastframe,int frameno,int size,int data[]);// text lastframe put 1
+	char* frame;	
 
 	// Send All-1 Frame
 	while(frame_number_current<frame_number_last){
 
-		// Create  Frame
-		// Send 1 frame + Start counter
-		frame_sender(data8bit[frame_number_current]);
-		printf("Sent Frame : %d\n",frame_number_current);
+		// CREATE frame from << data_parity
+		frame=iframe_new(isFile,0,frame_number_current%2,dataSize-frame_number_current*8 /*size*/,data_parity[frame_number_current]);// text lastframe put 1
+		printf("Frane Data size : %d\n",dataSize-frame_number_current*8);
 
-		//wait_ack(frame_number_current%2); // frame_number_current%2 == 0,1 << ACK 					
+		while(send_unsuccess){
+			// Send 1 frame + Start counter
+			frame_sender(frame);
+			printf("Sent Frame : %d\n",frame_number_current);
+			startTimer(sender_timer);
 
-		// EXIT PROGRAM
-		if(strchr(data8bit[frame_number_current],24)>=0){
-			exit(0);
+			send_unsuccess=wait_ack(frame_number_current%2); // frame_number_current%2 == 0,1 << ACK 					
+
+			// EXIT PROGRAM
 		}
 		frame_number_current++; // Next frame
 
 	}
+
+	// LAST FRAME;
+	iframe_new(isFile,1,frame_number_current%2,dataSize-frame_number_current*8,data_parity[frame_number_current]);// text lastframe put 1
+	while(send_unsuccess){
+		// Send 1 frame + Start counter
+		frame_sender(frame);
+		printf("Sent Frame : %d\n",frame_number_current);
+		startTimer(sender_timer);
+
+		send_unsuccess=wait_ack(frame_number_current%2); // frame_number_current%2 == 0,1 << ACK 					
+
+		// EXIT PROGRAM
+	}
 }
 
-unsigned char* frame_receiver(void){
-	unsigned char received_data[100];
-	R_No =0;
-	//printf("Receive << ");
-	do{
-		received_data[R_No] = get_character();
-		if(received_data[R_No] == 24)
-			exit(0);
-	}while((received_data[R_No++]) != 0);
-	if(received_data[R_No] == 24)
-		exit(0);
-	//printf("%s \n",received_data);
-	return received_data;
+void text_sender(char* send_data){
+	int* send_data;
+	int* data_parity;
+	int send_success;
+
+	send_unsuccess=1;
+	//----------SSSSSSSS----------
+	// Create S_FRAME;
+	while(send_unsuccess){
+		// Send 1 frame + Start counter
+		frame_sender(s_frame);
+		printf("Sent S-Frame\n");
+		startTimer(sender_timer);
+		send_unsuccess=wait_ack(0); // frame_number_current%2 == 0,1 << ACK 					
+	}
+
+
+	//----------IIIIIIII----------
+	send_unsuccess=1;
+	dataSize=strlen(send_data);
+	printf("SIZE : %d\n",dataSize);
+	data8bit=Cut8Char(send_data,dataSize);
+
+	// Add 2D-Parity (send_data,dataSize)
+	// Use new pointer from parity to Send >> data_parity
+	data_parity=parityGenerator(send_data,dataSize);
+
+	frame_number_current=0;
+	frame_number_last=dataSize/8;
+	printf("Frame Number : %d\n",frame_number_last);
+	if(dataSize%8!=0)
+		frame_number_last++;
+
+	control_sender(data_parity,frame_number_last,0,dataSize);
+
 }
 
 int frame_sender(unsigned char* str){
@@ -231,6 +260,22 @@ int frame_sender(unsigned char* str){
 
 	return 0;
 }
+
+unsigned char* frame_receiver(void){
+	unsigned char received_data[100];
+	R_No =0;
+	//printf("Receive << ");
+	do{
+		received_data[R_No] = get_character();
+		if(received_data[R_No] == 24)
+			exit(0);
+	}while((received_data[R_No++]) != 0);
+	if(received_data[R_No] == 24)
+		exit(0);
+	//printf("%s \n",received_data);
+	return received_data;
+}
+
 
 unsigned char** Cut8Char(unsigned char str[],int size){
 	int row= 0,j=0;
@@ -255,32 +300,18 @@ unsigned char** Cut8Char(unsigned char str[],int size){
 
 // File part
 
-void file_reader(char* filename){
+int file_reader(char* filename){
 	int fileSize=0;
-	char* filename_new;
-	short *ptr,ch;
+	short ch;
 	int i=0;
-	FILE *fp1 = NULL, *fp2 = NULL;
+	FILE *fp1 = NULL;
 
 	// rb= read-binary only start first 
-	// wb = write-binary 
-	//fp1=fopen("Print.ico", "rb");
 	fp1=fopen(filename, "rb");
 
-	i=strrchr(filename,'/');
-
-	strcpy (filename_new,filename);
-	strcat(filename_new,"_new");
-	fp2=fopen(filename_new, "wb");
-
 	printf("FILE Open: %s\n",filename);
-	printf("FILE write: %s\n",filename_new);
-	while(1);
-	// fp1=fopen("text.txt", "rb");
-	// fp2=fopen("text2.txt", "wb");
 
-	fseek(fp2, SEEK_SET, 0);
-	while(1){			// Find Size
+	while(1){	// Find Size
 		fread(&ch,sizeof(short),1, fp1);
 		if(feof(fp1))
 			break;
@@ -288,33 +319,24 @@ void file_reader(char* filename){
 	}
 
 	printf("FILE Size: %d\n",fileSize);
-	ptr = (short*)malloc(sizeof(short)*fileSize); //CREAT Array
 
-	i=0;
+	file_ptr = (short*)malloc(sizeof(short)*fileSize); //CREAT Array
+
 	fseek(fp1, SEEK_SET, 0);
 	while(1){
 		fread(&ch,sizeof(short),1, fp1);
-		if(feof(fp1)) break;
-		ptr[i++] = *&ch; //Save into Array
-		//fwrite(&ch,sizeof(short),1, fp2);
-		printf("%c\t",ch);
+		if(feof(fp1))
+			break;
+		file_ptr[i++] = *&ch; //Save into Array		printf("%c\t",ch);
 	}
-
-	// Write into file
-	//fwrite(ptr,sizeof(short),fileSize, fp2);
-	for(i=0;i<fileSize;i++){
-		// Send Frame << ptr[i] >>
-
-	}
-
-	//free(ptr);
 	fclose(fp1);
-	fclose(fp2);
+
+	return fileSize;
 }
 
-void file_writer(char* filename,int fileSize){
+void file_writer(char* filename,int fileSize,short *ptr){
 	char* filename_new;
-	short *ptr,ch;
+	short ch;
 
 	FILE *fileOut = NULL;
 
@@ -323,13 +345,10 @@ void file_writer(char* filename,int fileSize){
 
 	printf("FILE write: %s\n",filename);
 
-	while(fileSize--){
-		// Write into file
-		fwrite(ptr,sizeof(short),1, fileOut);
-	}
+	fwrite(ptr,sizeof(short),fileSize, fileOut);
 
-	//free(ptr);
 	fclose(fileOut);
+	printf("FILE write: Success\n");
 }
 
 // SET UP PART ---------------
@@ -373,14 +392,16 @@ int get_character(void)
 
 // --------------- Frame function -----------------
 
-/*isimg>>img=1//text=0*/
-iframe iframe_new(int isimg,int lastframe,int frameno,int size,int data[]){// text lastframe put 1
+/*isFile>>img=1//text=0*/
+char* iframe_new(int isFile,int lastframe,int frameno,int size,int data[]){// text lastframe put 1
 	int is3=0,is2=0;
 	int asize=size;
-	int a;
-	iframe temp;
+	unsigned int a,b,i,j;
+	char tempp[12];
+	iframe_sender temp;
+	//tempp=new char[12];
 	temp.i1=temp.i2=temp.i3=0;
-	if(isimg==1)temp.i1|=(1<<28);
+	if(isFile==1)temp.i1|=(1<<28);
 	if(lastframe==1)temp.i1|=(1<<27);
 	if(frameno==1)temp.i1|=(1<<26);
 	asize<<=19;
@@ -426,24 +447,51 @@ iframe iframe_new(int isimg,int lastframe,int frameno,int size,int data[]){// te
 			}else temp.i2|=(1<<22);								//set stop bit//3
 		}else is2=1;								//set stop bit//2
 	}else temp.i1|=(1<<8);							//set stop bit  //1
-	temp.i1*=-1;							//set start bit and control
-	if(is2==1)temp.i2*=-1;
-	if(is3==1)temp.i3*=-1;
-	return temp;
+	i=0;a=0xFF000000;j=24;
+	while(i<=3){
+		b=a;
+		b&=temp.i1;
+		b>>=j;
+		tempp[i]=(char)b;
+		i++;a/=0x00000100;j-=8;
+	}
+	a=0xFF000000;j=24;
+	while(i<=7){
+		b=a;
+		b&=temp.i2;
+		b>>=j;
+		tempp[i]=(char)b;
+		i++;a/=0x00000100;j-=8;
+	}
+	a=0xFF000000;j=24;
+	while(i<=11){
+		b=a;
+		b&=temp.i3;
+		b>>=j;
+		tempp[i]=(char)b;
+		i++;a/=0x00000100;j-=8;
+	}
+	tempp[0]|=(1<<8);							//set start bit and control
+	if(is2==1)tempp[4]|=(1<<8);
+	if(is3==1)tempp[8]|=(1<<8);
+
+	return tempp;
 }
 
-sframe sframe_new(int isimg,int ACKorNAK,int ACKno){
-	sframe temp;
+char sframe_new(int isFile,int ACKorNAK,int ACKno){
+	char temp; temp=0;
+	temp|=(1<<7)|(1<<5)|(1<<0);
 
-	temp.s1=0;
-	temp.s1|=(1<<7)|(1<<5)|(1<<0);//set start control stop
-	
-	if(isimg==1)
-		temp.s1|=(1<<4);
-	if(ACKorNAK=1)
-		temp.s1|=(1<<3);
-	if(ACKno==1)
-		temp.s1|=(1<<2);
-
+//set start control stop if(isFile==1)temp|=(1<<4);
+	if(ACKorNAK==1)temp|=(1<<3);
+	if(ACKno==1)temp|=(1<<2);
 	return temp;
+}
+//-----------------------------TIMER-----------------------------
+int startTimer(){
+	startTime=clock();
+}
+
+int getTimer(){
+	return sender_timer-(startTime-clock());
 }
