@@ -126,27 +126,189 @@ void file_writer(char* filename,int fileSize,unsigned char* ptr){
 }
 
 
+unsigned int SgetStart(char frame){
+	unsigned char temp=0xC0;
+	temp&=frame;
+	temp>>=6;
+	return temp;
+}
+
+
+unsigned int SgetControl(char frame){
+	unsigned char temp=0x30;
+	temp&=frame;
+	temp>>=4;
+	return temp;
+}
+
+unsigned int IgetIslastframe(char* frame){
+	unsigned char temp=0x08;
+	temp&=frame[0];
+	temp>>=3;
+	return temp;
+}
+
+
+unsigned int SgetEnd(char frame){
+	unsigned char temp=0x03;
+	temp&=frame;
+	return temp;
+}
+
+unsigned int IgetEnd(char* frame){
+	unsigned char temp=0x03;
+	temp&=frame[11];
+	return temp;
+}
+
+unsigned int IgetStart(char* frame){
+	unsigned char temp=0xC0;
+	temp&=frame[0];
+	temp>>=6;
+	return temp;
+}
+
+unsigned int IgetControl(char* frame){
+	unsigned char temp=0x30;
+	temp&=frame[0];
+	temp>>=4;
+	return temp;
+}
+unsigned int IgetFrameno(char* frame){
+	unsigned char temp=0x04;
+	temp&=frame[0];
+	temp>>=2;
+	return temp;
+}
+
+unsigned int  IgetSize(char* frame){
+	unsigned char temp=0x03,a=0xF8;
+	temp&=frame[0];
+	temp<<=5;
+	a&=frame[1];
+	a>>=3;
+	temp+=a;
+	return temp;
+}
+unsigned int* Igetdata(char* frame){
+	unsigned int temp[9]={0,0,0,0,0,0,0,0,0};
+	unsigned int a;
+//0
+	a=0x07;a&=frame[1];a<<=6;
+	temp[0]+=a;
+	a=0xFC;a&=frame[2];a>>=2;
+	temp[0]+=a;
+
+//1
+	a=0x03;a&=frame[2];a<<=7;
+	temp[1]+=a;
+	a=0xFE;a&=frame[3];a>>=1;
+	temp[1]+=a;
+
+//2
+	a=0x01;a&=frame[3];a<<=8;
+	temp[2]+=a;
+	a=0xFF;a&=frame[4];
+	temp[2]+=a;
+
+//3
+	a=0xFF;a&=frame[5];a<<=1;
+	temp[3]+=a;
+	a=0x80;a&=frame[6];a>>=7;
+	temp[3]+=a;
+
+//4
+	a=0x7F;a&=frame[6];a<<=2;
+	temp[4]+=a;
+	a=0xC0;a&=frame[7];a>>=6;
+	temp[4]+=a;
+
+//5
+	a=0x3F;a&=frame[7];a<<=3;
+	temp[5]+=a;
+	a=0xE0;a&=frame[8];a>>=5;
+	temp[5]+=a;
+
+//6
+	a=0x1F;a&=frame[8];a<<=4;
+	temp[6]+=a;
+	a=0xF0;a&=frame[9];a>>=4;
+	temp[6]+=a;
+
+//7
+	a=0x0F;a&=frame[9];a<<=5;
+	temp[7]+=a;
+	a=0xF8;a&=frame[10];a>>=3;
+	temp[7]+=a;
+
+//8
+	a=0x07;a&=frame[10];a<<=6;
+	temp[8]+=a;
+	a=0xFC;a&=frame[11];a>>=2;
+	temp[8]+=a;
+
+	return &temp;
+}
+
+
 int main( void)
 {
 	int size,i;
 	char ch;
+	unsigned char* dataparity;
+	unsigned char* data;
+
+	unsigned char* datain = (unsigned char*)malloc(sizeof(unsigned char)*12);
 	setup_serial();
 
 	size=get_character();
 	printf("SIZE:%d\n",size);
 
+	printf("-----------\n");
 
 	i=0;
 	while(size--){
 		printf("I : %d",i);
 		ch=get_character();
-		file_ptr[i++]=ch;
-		printf(">> %c\n",ch);
+		datain[i++]=ch;
+		printf(">> %x\n",datain[i-1]);
 	}
-	//file_ptr[i++]=ch;
 	puts("RECEIVED\n");
 
-	file_writer("NEW2.txt",i,file_ptr);
+	printf("I>S : %d\n ",IgetStart(datain));
+	printf("I>C : %d\n ",IgetControl(datain));
+	printf("I>F : %d\n ",IgetFrameno(datain));
+	printf("I>Z : %d\n ",IgetSize(datain));
+
+	dataparity=Igetdata(datain);
+	data=(unsigned char*)malloc(sizeof(unsigned char)*IgetSize(datain));
+	size=IgetSize(datain);
+
+	i=0;
+	while(i<size){
+		data[i++]=(*dataparity)>>1;
+		dataparity++;
+	}
+
+	i=0;
+	while(i<size){
+		printf("D: %c\n",data[i]);
+		data++;
+		i++;
+	}
+
+
+	
+	// i=0;
+	// while(size--){
+	// 	printf("I : %d",i);
+	// 	ch=get_character();
+	// 	file_ptr[i++]=ch;
+	// 	printf(">> %c\n",ch);
+	// }
+	// puts("RECEIVED\n");
+	// file_writer("NEW2.txt",i,file_ptr);
+
 
 	puts("SUCCESS\n");
 	getch();

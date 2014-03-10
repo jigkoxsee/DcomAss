@@ -86,91 +86,87 @@ unsigned char sframe_new(int isFile,int ACKorNAK,int ACKno){
 }
 
 unsigned char* iframe_new_frame(int isFile,int lastframe,int frameno,int size,int* data){// text lastframe put 1
-	int is3=0,is2=0;
-	int asize=size;
-	unsigned int a,b,i,j;
-	unsigned char* tempp = (unsigned char*)malloc(sizeof(unsigned char)*12);
-	int i_frame_part1,i_frame_part2,i_frame_part3=0;
-	//tempp=new unsigned char[12];
-	i_frame_part1=i_frame_part2=i_frame_part3=0;
-	if(isFile==1)i_frame_part1|=(1<<28);
-	if(lastframe==1)i_frame_part1|=(1<<27);
-	if(frameno==1)i_frame_part1|=(1<<26);
-	asize<<=19;
-	i_frame_part1+=asize;								//set size
+	int asize=size,i;
+	unsigned int a;
+	unsigned char* temp = (unsigned char*)malloc(sizeof(unsigned char)*12);
+	for(a=0;a<12;a++)temp[a]=0;
+	temp[0]|=(1<<7); //set start
+	temp[11]|=(1);//set stop
+	if(isFile==1)temp[0]|=(1<<4);
+	if(lastframe==1)temp[0]|=(1<<3);
+	if(frameno==1)temp[0]|=(1<<2);
+	a=0x60;a&=size;a>>=5;temp[0]+=a;
+	a=0x1F;a&=size;a<<=3;temp[1]+=a;			//set size
 	//add data
-	a=data[0];											//0
-	a<<=10;
-	i_frame_part1+=a;
-	size-=8;
-	if(size>0){
-		a=data[1]; a<<=1; i_frame_part1+=a;size-=8;				//1
-		if(size>0){
-			a=data[2];										//2
-			if(a>=256){i_frame_part1|=(1<<0);a-=256;}
-			if(a>=128){is2=1;a-=128;}
-			a<<=24;i_frame_part2+=a;size-=8;
-			if(size>0){
-				a=data[3]; a<<=15; i_frame_part2+=a;	size-=8;			//3
-				if(size>0){
-					a=data[4]; a<<=6;  i_frame_part2+=a;	size-=8;		//4
-					if(size>0){
-						a=data[5];									//5
-						if(a>=256){i_frame_part1|=(1<<5);a-=128;}
-						if(a>=128){i_frame_part1|=(1<<4);a-=128;}
-						if(a>=64){i_frame_part1|=(1<<3);a-=64;}
-						if(a>=32){i_frame_part1|=(1<<2);a-=32;}
-						if(a>=16){i_frame_part1|=(1<<1);a-=16;}
-						if(a>=8){i_frame_part1|=(1<<0);a-=8;}
-						if(a>=4){is3=1;a-=4;}
-						a<<=29;i_frame_part3+=a;size-=8;
-						if(size>0){
-							a=data[6]; a<<=20; i_frame_part3+=a;	size-=8;			//6
-							if(size>0){
-								a=data[7]; a<<=11; i_frame_part3+=a;	size-=8;		//7
-								if(size>0){
-									a=data[8]; a<<=2;  i_frame_part3+=a;				//8
-									i_frame_part3|=(1<<0);								//set stop bit
-								}else i_frame_part3|=(1<<9);								//set stop bit//8
-							}else i_frame_part3|=(1<<18);								//set stop bit//7
-						}else i_frame_part3|=(1<<27);								//set stop bit//6
-					}else i_frame_part2|=(1<<4);								//set stop bit//5
-				}else i_frame_part2|=(1<<13);								//set stop bit//4
-			}else i_frame_part2|=(1<<22);								//set stop bit//3
-		}else is2=1;								//set stop bit//2
-	}else i_frame_part1|=(1<<8);							//set stop bit  //1
-	i=0;a=0xFF000000;j=24;
-	while(i<=3){
-		b=a;
-		b&=i_frame_part1;
-		b>>=j;
-		tempp[i]=(unsigned char)b;
-		i++;a/=0x00000100;j-=8;
+	//0
+	a=0x1C0;a&=data[0];a>>=6;
+	temp[1]+=a;
+	a=0x03F;a&=data[0];a<<=2;
+	temp[2]+=a;
+	//1
+	a=0x180;a&=data[1];a>>=7;
+	temp[2]+=a;
+	a=0x07F;a&=data[1];a<<=1;
+	temp[3]+=a;
+	if(asize>1){
+		//2
+		a=0x100;a&=data[2];a>>=8;
+		temp[3]+=a;
+		a=0x0FF;a&=data[2];
+		temp[4]+=a;
+		asize--;
+		if(asize>1){
+			//3
+			a=0x1FE;a&=data[3];a>>=1;
+			temp[5]+=a;
+			a=0x001;a&=data[3];a<<=7;
+			temp[6]+=a;
+			asize--;
+			if(asize>1){
+				//4
+				a=0x1FC;a&=data[4];a>>=2;
+				temp[6]+=a;
+				a=0x003;a&=data[4];a<<=6;
+				temp[7]+=a;
+				asize--;
+				if(asize>1){
+					//5
+					a=0x1F8;a&=data[5];a>>=3;
+					temp[7]+=a;
+					a=0x007;a&=data[5];a<<=5;
+					temp[8]+=a;
+					asize--;
+					if(asize>1){
+						//6
+						a=0x1F0;a&=data[6];a>>=4;
+						temp[8]+=a;
+						a=0x00F;a&=data[6];a<<=4;
+						temp[9]+=a;
+						asize--;
+						if(asize>1){
+							//7
+							a=0x1E0;a&=data[7];a>>=5;
+							temp[9]+=a;
+							a=0x01F;a&=data[7];a<<=3;
+							temp[10]+=a;
+							asize--;
+							if(asize>1){
+								//8
+								a=0x1C0;a&=data[8];a>>=6;
+								temp[10]+=a;
+								a=0x03F;a&=data[8];a<<=2;
+								temp[11]+=a;
+							}
+						}
+					}
+				}
+			}
+		}
 	}
-	a=0xFF000000;j=24;
-	while(i<=7){
-		b=a;
-		b&=i_frame_part2;
-		b>>=j;
-		tempp[i]=(unsigned char)b;
-		i++;a/=0x00000100;j-=8;
-	}
-	a=0xFF000000;j=24;
-	while(i<=11){
-		b=a;
-		b&=i_frame_part3;
-		b>>=j;
-		tempp[i]=(unsigned char)b;
-		i++;a/=0x00000100;j-=8;
-	}
-	tempp[0]|=(1<<8);							//set start bit and control
-	if(is2==1)tempp[4]|=(1<<8);
-	if(is3==1)tempp[8]|=(1<<8);
-
-	return tempp;
+	return temp;
 }
 
-int main( void)
+int main(void)
 {
 	int size,i;
 	unsigned char sf;
@@ -200,8 +196,8 @@ int main( void)
 	printf("IF %x\n", iframe555[10]);
 	printf("IF %x\n", iframe555[11]);
 
+	printf("Len %d\n", strlen(iframe555));
 
-	
 	/*send_character(size);
 	printf("SIZE: %d\n",size );
 	getch();*/
