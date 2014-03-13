@@ -291,7 +291,7 @@ unsigned char* frame_receiver(){
 
 	dataparity=Igetdata(datain);
 
-	printf("Parity Check %s\n", parityChecker(dataparity,size)); //parityChecker(dataparity,size)==1?"TRUE":"FALSE"
+	//printf("Parity Check %s\n", parityChecker(dataparity,size)); //parityChecker(dataparity,size)==1?"TRUE":"FALSE"
 
 	data=(unsigned char*)malloc(sizeof(unsigned char)*IgetSize(datain));
 

@@ -60,7 +60,7 @@ unsigned char* iframe_new_frame(int isFile,int lastframe,int frameno,int size,in
 unsigned char* sframe_new(int isFile,int ACKorNAK,int ACKno);
 
 int parityGen(int v);
-int* parityEncap(unsigned char* input,int size);
+unsigned int *parityEncap(unsigned char* input,int size);
 int parityChecker(int* input,int size);
 
 void Iframe_sender(unsigned char* data,int size,int isFile,int lastframe,int frameno);
@@ -68,7 +68,7 @@ unsigned char* Iframe_receiver();
 void Sframe_sender(int isFile,int ACKno);
 unsigned char** Cut8Char(unsigned char str[],int size);
 void text_sender(unsigned char* send_data);
-void control_sender(int* data8bit,int isFile,int dataSize);
+void control_sender(unsigned char** data8bit,int isFile,int dataSize);
 
 
 int getTimer();
@@ -506,7 +506,7 @@ int parityGen(int v) { //EVEN Parity
 return (0x6996 >> v) & 1;
 }
 
-int *parityEncap(unsigned char* input,int size){
+unsigned int *parityEncap(unsigned char* input,int size){
     int i,j;
     int mask = 0x01;
     unsigned char verticalBit[8];
@@ -515,7 +515,7 @@ int *parityEncap(unsigned char* input,int size){
     unsigned char tempLastParity = 0;
     int outputTemp = 0;
     int parityTemp = 0;
-    int *output = malloc(size);
+    unsigned int *output = malloc(size);
     int lastParity = 0;
     int tempRightBottomParityVertical = 0;
     int tempRightBottomParityHorizontal = 0;
@@ -595,7 +595,7 @@ int wait_ack(int ackNo){
 	//printf("received ACK No. %d\n",ack);
 }
 
-void control_sender(int* data8bit,int isFile,int dataSize){
+void control_sender(unsigned char** data8bit,int isFile,int dataSize){
 	unsigned char* frame;
 	int i=0;
 	int send_unsuccess=1;
@@ -615,7 +615,7 @@ void control_sender(int* data8bit,int isFile,int dataSize){
 		//send_unsuccess=1;
 		//while(send_unsuccess){
 
-		Iframe_sender(data8bit+frame_number_current,dataSize-frame_number_current*8,isFile,0,frame_number_current%2);
+		Iframe_sender(data8bit[frame_number_current],dataSize-frame_number_current*8,isFile,0,frame_number_current%2);
 
 		printf("Frane Data size : %d\n",dataSize-frame_number_current*8);
 
@@ -657,7 +657,7 @@ void text_sender(unsigned char* send_data){
 	data8bit=Cut8Char(send_data,dataSize);
 
 	for(i=0;i<dataSize;i++){
-		printf("Row %d : %c\n",i,data8bit[i]); 
+		printf("Data8bit[%d] : %c\n",i,data8bit[i]); 
 	}
 
 	frame_number_current=0;
@@ -694,10 +694,19 @@ void Iframe_sender(unsigned char* data,int size,int isFile,int lastframe,int fra
 
 	int i;
 	int send_unsuccess=1;
-	int* data_parity;
+	unsigned int* data_parity;
 	unsigned char* iframe_send;
 	unsigned char* dataparity;
 	unsigned char* data_exact;
+	unsigned char* data_test=(unsigned char**)malloc((4)*sizeof(unsigned char*));
+
+	data_test[0]='A';
+	data_test[1]='B';
+	data_test[2]='C';
+	data_test[3]='D';
+
+	data=data_test;
+
 
 	printf("(start)Data Size : %d\n",size);
 
@@ -707,18 +716,18 @@ void Iframe_sender(unsigned char* data,int size,int isFile,int lastframe,int fra
 			getch();
 			exit(0);
 		}
-
+	printf("\n"); 
 	for(i=0;i<size+1;i++){
-		printf("Row %d : %c\n",i,data[i]); 
+		printf("Row Iframe_sender %d : %c / %x\n",i,data[i],data[i]); 
 	}
 
 	//printf("_____parity______\n"); 
 	data_parity=parityEncap(data,size);
-/*
+
 	for(i=0;i<size+1;i++){
 		printf("row %d : %x\n",i,data_parity); 
 	}
-*/
+
 
 
 	//unsigned char* iframe_new_frame(int isFile,int lastframe,int frameno,int size,int* data){
