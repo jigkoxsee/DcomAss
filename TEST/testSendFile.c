@@ -1,9 +1,9 @@
 #define COM1BASE 0x3F8
 #define COM2BASE 0X2F8
 #define COM3BASE 0X3E8
-#define TXDATA COM2BASE
-#define LCR (COM2BASE+3) /*0x3F8 line control*/
-#define LSR (COM2BASE+5) /*0x3FD line status */
+#define TXDATA COM3BASE
+#define LCR (COM3BASE+3) /*0x3F8 line control*/
+#define LSR (COM3BASE+5) /*0x3FD line status */
 #include <conio.h>
 #include <dos.h>
 #include <stdio.h>
@@ -194,6 +194,130 @@ unsigned char* iframe_new_frame(int isFile,int lastframe,int frameno,int size,in
 	return temp;
 }
 
+unsigned int SgetStart(char frame){
+	unsigned char temp=0xC0;
+	temp&=frame;
+	temp>>=6;
+	return temp;
+}
+
+
+unsigned int SgetControl(char frame){
+	unsigned char temp=0x30;
+	temp&=frame;
+	temp>>=4;
+	return temp;
+}
+
+unsigned int IgetIslastframe(char* frame){
+	unsigned char temp=0x08;
+	temp&=frame[0];
+	temp>>=3;
+	return temp;
+}
+
+
+unsigned int SgetEnd(char frame){
+	unsigned char temp=0x03;
+	temp&=frame;
+	return temp;
+}
+
+unsigned int IgetEnd(char* frame){
+	unsigned char temp=0x03;
+	temp&=frame[11];
+	return temp;
+}
+
+unsigned int IgetStart(char* frame){
+	unsigned char temp=0xC0;
+	temp&=frame[0];
+	temp>>=6;
+	return temp;
+}
+
+unsigned int IgetControl(char* frame){
+	unsigned char temp=0x30;
+	temp&=frame[0];
+	temp>>=4;
+	return temp;
+}
+unsigned int IgetFrameno(char* frame){
+	unsigned char temp=0x04;
+	temp&=frame[0];
+	temp>>=2;
+	return temp;
+}
+
+unsigned int  IgetSize(char* frame){
+	unsigned char temp=0x03,a=0xF8;
+	temp&=frame[0];
+	temp<<=5;
+	a&=frame[1];
+	a>>=3;
+	temp+=a;
+	return temp;
+}
+unsigned int* Igetdata(char* frame){
+	unsigned int temp[9]={0,0,0,0,0,0,0,0,0};
+	unsigned int a;
+//0
+	a=0x07;a&=frame[1];a<<=6;
+	temp[0]+=a;
+	a=0xFC;a&=frame[2];a>>=2;
+	temp[0]+=a;
+
+//1
+	a=0x03;a&=frame[2];a<<=7;
+	temp[1]+=a;
+	a=0xFE;a&=frame[3];a>>=1;
+	temp[1]+=a;
+
+//2
+	a=0x01;a&=frame[3];a<<=8;
+	temp[2]+=a;
+	a=0xFF;a&=frame[4];
+	temp[2]+=a;
+
+//3
+	a=0xFF;a&=frame[5];a<<=1;
+	temp[3]+=a;
+	a=0x80;a&=frame[6];a>>=7;
+	temp[3]+=a;
+
+//4
+	a=0x7F;a&=frame[6];a<<=2;
+	temp[4]+=a;
+	a=0xC0;a&=frame[7];a>>=6;
+	temp[4]+=a;
+
+//5
+	a=0x3F;a&=frame[7];a<<=3;
+	temp[5]+=a;
+	a=0xE0;a&=frame[8];a>>=5;
+	temp[5]+=a;
+
+//6
+	a=0x1F;a&=frame[8];a<<=4;
+	temp[6]+=a;
+	a=0xF0;a&=frame[9];a>>=4;
+	temp[6]+=a;
+
+//7
+	a=0x0F;a&=frame[9];a<<=5;
+	temp[7]+=a;
+	a=0xF8;a&=frame[10];a>>=3;
+	temp[7]+=a;
+
+//8
+	a=0x07;a&=frame[10];a<<=6;
+	temp[8]+=a;
+	a=0xFC;a&=frame[11];a>>=2;
+	temp[8]+=a;
+
+	return &temp;
+}
+
 int parityGen(int v) { //EVEN Parity
     v ^= v >> 16;
     v ^= v >> 8;
@@ -259,24 +383,18 @@ int parityChecker(int* input,int size){
     return 1;
 }
 
+void frame_sender(unsigned char* data,int size,int isFile,int lastframe,int frameno){
 
-int main(void)
-{
-	int size,i;
-	unsigned char* iframe555;
-	unsigned char data[]={65};
+	int i;
 	int* data_parity;
-	size=1;
-	//int *parityEncap(unsigned char* input,int size)
+	unsigned char* iframe555;
+	unsigned char* dataparity;
+	unsigned char* data_exact;
+
 	data_parity=parityEncap(data,size);
 
 	//unsigned char* iframe_new_frame(int isFile,int lastframe,int frameno,int size,int* data){
-	iframe555=iframe_new_frame(0,1,0,1,data_parity);
-
-	setup_serial();
-
-	send_character(12);
-
+	iframe555=iframe_new_frame(isFile,lastframe,frameno,size,data_parity);
 
 	send_character(iframe555[0]);
 	printf("IF : %x\n",iframe555[0]);
@@ -303,6 +421,51 @@ int main(void)
 	send_character(iframe555[11]);
 	printf("IF : %x\n",iframe555[11]);
 
+	printf("I>S : %d\n ",IgetStart(iframe555));
+	printf("I>C : %d\n ",IgetControl(iframe555));
+	printf("I>F : %d\n ",IgetFrameno(iframe555));
+	printf("I>Z : %d\n ",IgetSize(iframe555));
+
+	dataparity=Igetdata(iframe555);
+	data_exact=(unsigned char*)malloc(sizeof(unsigned char)*IgetSize(iframe555));
+	size=IgetSize(iframe555);
+
+	i=0;
+	while(i<=size){
+		data_exact[i++]=(*dataparity)>>1;
+		dataparity++;
+	}
+
+	i=0;
+	while(i<size){
+		printf("D: %c\n",data_exact[i]);
+		data_exact++;
+		i++;
+	}
+}
+
+
+int main(void)
+{
+	int size,i;
+	
+	unsigned char data[]={65,66};
+	
+	
+	size=2;
+
+	setup_serial();
+	//int *parityEncap(unsigned char* input,int size)
+
+	frame_sender(data,size,0,1,0);
+	
+
+	puts("SUCCESS\n");
+
+	frame_sender(data,1,0,1,0);
+
+	puts("SUCCESS\n");
+	getch();
 
 	//size=4;
 	/*size=file_reader("NEW_FOPE.txt");
@@ -313,12 +476,6 @@ int main(void)
 	for(i=0;i<size;i++){
 		send_character(*file_ptr++);
 	}*/
-
-
-
-	puts("SUCCESS\n");
-
-	getch();
 
 	return 0;
 }

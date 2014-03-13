@@ -250,24 +250,102 @@ unsigned int* Igetdata(char* frame){
 	return &temp;
 }
 
+int parityChecker(const int* input,int size){
+	int i;
+	int temp;
+	for(i = 0;i < size;i++){
+		temp += input[i];
+	}
+	if (temp % 2 != 0){ 
+		return 0;
+	}
+	return 1;
+}
+
+unsigned char* frame_receiver(){
+	int roundNo,i,size;
+	char ch;
+	unsigned int* dataparity;
+	unsigned char* data;
+	unsigned char* datain = (unsigned char*)malloc(sizeof(unsigned char)*12);
+
+	roundNo=12;
+	printf("roundNo:%d\n",roundNo);
+
+	printf("-----------\n");
+
+	i=0;
+	while(i<roundNo){
+		printf("I : %d",i);
+		ch=get_character();
+		datain[i++]=ch;
+		printf(">> %x\n",datain[i-1]);
+	}
+	puts("RECEIVED\n");
+
+	size=IgetSize(datain);
+	printf("I>S : %d\n ",IgetStart(datain));
+	printf("I>C : %d\n ",IgetControl(datain));
+	printf("I>F : %d\n ",IgetFrameno(datain));
+	printf("I>Z : %d\n ",size);
+
+	dataparity=Igetdata(datain);
+
+	printf("Parity Check %s\n", parityChecker(dataparity,size)); //parityChecker(dataparity,size)==1?"TRUE":"FALSE"
+
+	data=(unsigned char*)malloc(sizeof(unsigned char)*IgetSize(datain));
+
+
+	///////////// Parity Checker \\\\\\\\\\\\\\\\\\\\\
+
+	i=0;
+	while(i<size){
+		data[i]=(dataparity[i])>>1;
+		i++;
+		//dataparity++;
+	}
+
+	i=0;
+	while(i<size){
+		printf("D: %c 0x%x\n",data[i],data[i]);
+		//data++;
+		i++;
+	}
+
+	// TEST
+/*
+	i=0;
+	while(i<12){
+		printf("D in Parity : %x \n",dataparity[i++]>>1);
+		//i++;
+		//dataparity++;
+	}*/
+	
+
+	return data; // User strlen(data) to find it Size.
+}
+
 
 int main( void)
 {
-	int size,i;
-	char ch;
-	unsigned char* dataparity;
-	unsigned char* data;
+	//int size,i;
+	//char ch;
+	//unsigned char* dataparity;
+	//unsigned char* data;
 
-	unsigned char* datain = (unsigned char*)malloc(sizeof(unsigned char)*12);
+	//unsigned char* datain = (unsigned char*)malloc(sizeof(unsigned char)*12);
 	setup_serial();
 
-	size=get_character();
+	frame_receiver();
+
+
+	/*size=12;
 	printf("SIZE:%d\n",size);
 
 	printf("-----------\n");
 
 	i=0;
-	while(size--){
+	while(i<size){
 		printf("I : %d",i);
 		ch=get_character();
 		datain[i++]=ch;
@@ -285,7 +363,7 @@ int main( void)
 	size=IgetSize(datain);
 
 	i=0;
-	while(i<size){
+	while(i<=size){
 		data[i++]=(*dataparity)>>1;
 		dataparity++;
 	}
@@ -295,7 +373,7 @@ int main( void)
 		printf("D: %c\n",data[i]);
 		data++;
 		i++;
-	}
+	}*/
 
 
 	
